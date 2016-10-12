@@ -1,0 +1,119 @@
+这里先讲几件事：
+1、这是第三次修改这篇文章了，也是第一次正真意义上的使用 github 来控制版本，想想还是有点小激动的:)
+2、其中的内容结构与 mongodb基础命令是一致的，只不过添加了很多内容进去，适用于想进一步学习mongodb数据库的人
+3、我其实也是菜鸟，所以我会用很白目的语言来解释其中的内容，如果你也跟我一样，那就两只鸟一起飞吧
+4、接下来的内容均是我对《MongoDB大数据权威指南(第2版)》的摘记
+5、其中的命令例子并没有事先创建好数据库、集合，都是要用到的时候临时写的，注意理解
+
+mongodb数据库结构与传统关系型数据库的比较，便于理解接下来的内容
+数据库->集合->文档
+数据库->表  ->列
+
+查看所有数据库
+show dbs
+
+创建集合
+db.createCollection()
+
+查看所有集合\表
+show collections
+show tables
+
+选定某一集合
+use db_name
+
+查看集合的信息
+db.stats()
+
+删除一个集合，但是需要先指定一个数据库，即先执行 use db_name
+db.dropDatabase()
+
+插入数据
+db.collection_name.insert(document)
+db.collection_name.save(document)
+
+查询数据多条数据
+db.collection_name.find()
+-------------------------
+1、可以指定返回的内容
+参数解释
+db.collection_name.find(
+	{query_term:value},
+	return_key_name:1}
+)
+a find()函数的第一个参数是查询条件，即匹配该内容的文档都会被筛选出来
+b find()函数的第二个参数是指定返回的内容，例如一个student的集合中的一个xiaoming文档中包含多条内容，姓名、学生号、家庭住址等，现在我只想看姓名，不想查询的时候返回xiaoming文档的全部内容，就可以使用这种'键名:1'的形式，后面的1是规定的，不能更改
+c 可以返回多条记录，这里只是举个例子，还是拿ixaoming的例子
+{
+	'name':1,
+	'student_id':1
+}
+这样就返回了两个信息，一个name，一个student_id
+2、查询嵌套信息
+结合二维数组理解下面的这个信息
+{
+	'name':'yang',
+	'sex':'man',
+	'skill':[
+		{'php':1},
+		{'mongodb':4},
+		{'redis':5}
+	],
+	'favorite_food':'meat'
+}
+其中如果使用skill来作为find()的查询条件的话，千万别写成这样
+---错误例子---
+db.self.find({'skill':[{'php':1}]})
+这样是查不到的，因为这样mongodb会将{'skill':[{'php':1}]}解析成skill数组下只包含'php':1这一条记录的内容，上面的例子明显不符合这一要求，所以查询不到
+---正确的例子---
+db.self.find({'skill.php':1})
+这里使用了 . 告诉mongodb数据库去匹配skill数组下php为1的内容，重点在于skill下是否有'php':1这一条记录
+---正确例子2---
+如果一定要使用上面的错误例子的方式查询数据，可以使用$elemMatch参数，注意该参数使用的位置
+db.self.find({
+	'skill':{$elemMatch:
+	{'php':1}
+	}
+})
+
+
+查询单条数据
+db.collection_name.findOne()
+
+计算符合查询条件的文档的数量
+db.collection_name.find().count()
+
+skip 跳过查询的最开始的数量，limit，限制返回数量，sort，当 x:1 表示正序，x:-1 表示逆序
+db.collection_name.find().skip(Number).limit(Number).sort({x:1})
+
+更新数据，注意两点
+1、只要原 collection 中包含 original_key:original_value 就会被选中成为操作对象
+2、整个 collection 都会被更新成 new_key:new_value ，而不单单就只是更新 original_key:original_value
+db.collection_name.update({original_key:original_value},{new_key:new_value})
+
+相较于上面会更新整个集合，下面添加了 $set: 的形式来只进行部分字段的更新
+db.collection_name.update({original_key:original_value},{$set:{new_key:new_value}})
+
+如果此更新数据不存在就创建这一条数据，加第三个参数为 true 就可以实现了
+db.collection_name.update({original_key:original_value},{new_key:new_value},true)
+
+uodate 只会更新第一条满足条件的记录，但是想更新多条记录时，将第三个参数设置为 false，第四个参数设置为 true，而且还要设置 $set
+db.collection_name.update({original_key:original_value},{$set{new_key:new_value}},false,true)
+
+删除所有查找到的数据
+db.coolection_name.remove({key:value})
+
+删除一张表
+db.collection_name.drop()
+
+查看集合的索引
+db.collection_name.getIndexes()
+
+创建索引
+db.collection_name.ensureIndex({key:value})
+
+删除索引
+db.collection_name.dropIndex({key:value})
+
+删除所有索引
+db.collection_name.dropIndexes()
