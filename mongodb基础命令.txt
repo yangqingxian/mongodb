@@ -1,0 +1,72 @@
+这里先讲几件事：
+1、这是第二次修改这篇文章了，删除了一些关于索引的内容，觉得索引单独拿出来讲比较好，所以这整篇文章的命令都是关于集合和数据库的，很容易理解
+2、下面的命令中如果是以 db. 这样的形式的，都是需要先指定数据库的，即 use db_name
+3、注意大小写，即使是在 windows 下。如果偷懒打成小写的会报错没有该条命令存在的
+4、这里的命令都是在 mongodb .3.2.8 的版本下测试的
+
+查看所有数据库
+show dbs
+
+创建集合
+db.createCollection()
+
+查看所有集合\表
+show collections
+show tables
+
+选定某一集合
+use db_name
+
+查看集合的信息
+db.stats()
+
+删除一个集合，但是需要先指定一个数据库，即先执行 use db_name
+db.dropDatabase()
+
+插入数据
+db.collection_name.insert(document)
+db.collection_name.save(document)
+
+查询数据多条数据
+db.collection_name.find()
+
+查询单条数据
+db.collection_name.findOne()
+
+计算符合查询条件的文档的数量
+db.collection_name.find().count()
+
+skip 跳过查询的最开始的数量，limit，限制返回数量，sort，当 x:1 表示正序，x:-1 表示逆序
+db.collection_name.find().skip(Number).limit(Number).sort({x:1})
+
+更新数据，注意两点
+1、只要原 collection 中包含 original_key:original_value 就会被选中成为操作对象
+2、整个 collection 都会被更新成 new_key:new_value ，而不单单就只是更新 original_key:original_value
+db.collection_name.update({original_key:original_value},{new_key:new_value})
+
+相较于上面会更新整个集合，下面添加了 $set: 的形式来只进行部分字段的更新
+db.collection_name.update({original_key:original_value},{$set:{new_key:new_value}})
+
+如果此更新数据不存在就创建这一条数据，加第三个参数为 true 就可以实现了
+db.collection_name.update({original_key:original_value},{new_key:new_value},true)
+
+uodate 只会更新第一条满足条件的记录，但是想更新多条记录时，将第三个参数设置为 false，第四个参数设置为 true，而且还要设置 $set
+db.collection_name.update({original_key:original_value},{$set{new_key:new_value}},false,true)
+
+删除所有查找到的数据
+db.coolection_name.remove({key:value})
+
+删除一张表
+db.collection_name.drop()
+
+查看集合的索引
+db.collection_name.getIndexes()
+
+创建索引
+db.collection_name.ensureIndex({key:value})
+
+删除索引
+db.collection_name.dropIndex({key:value})
+
+删除所有索引
+db.collection_name.dropIndexes()
