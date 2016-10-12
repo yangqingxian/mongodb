@@ -371,3 +371,29 @@ db.collection_name.dropIndex({key:value})
 
 删除所有索引
 db.collection_name.dropIndexes()
+
+前面我们操作的都是一个集合，接下来我们要学习简单的操作多个集合了，有两种方式，手动或者使用DBRef
+先创建两个集合
+collection1={
+	'name':'yang',
+	'sex':'man'
+}
+collection2={
+	'id':1,
+	'name':'yang',
+	'math':60,
+	'pe':30,
+	'chinese':60
+}
+db.student.save(collection2)
+db.yang.save(collection)
+----------------------------
+接下来就是大致思路了
+yang=db.yang.findOne()
+db.student.find(
+{'name':yang.name}
+)
+-------------------------
+mongodb不支持像传统的关系型数据库那样的多表操作，mongodb都是需要先将数据保存好，再来调用的，如上面的yang保存的就是find()查询所需要的内容，需要先将数据从数据库中读出保存好再来调用，其中yang.name就等于'yang'
+
+接下来就是使用DBRef引用数据库了，调用DBRef需要传入三个参数，第一个调用的collection_name，id,db_name，这个可选，还是上面的这个例子，接下来使用DBRef的方式，但是这玩意我怎么也搞不定
