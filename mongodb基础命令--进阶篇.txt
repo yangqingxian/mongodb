@@ -9,9 +9,13 @@ mongodb数据库结构与传统关系型数据库的比较，便于理解接下�
 数据库->集合->文档
 数据库->表  ->列
 
+--------------------------------------------------数据库内容---------------------------------------------
 查看所有数据库
 show dbs
 
+删除数据库
+db.dropDatebase()
+--------------------------------------------------集合内容-----------------------------------------------
 创建集合
 db.createCollection()
 
@@ -28,6 +32,10 @@ db.stats()
 删除一个集合，但是需要先指定一个数据库，即先执行 use db_name
 db.dropDatabase()
 
+修改集合的名称
+db.collection_name.renameCollection('new_name')
+
+-------------------------------------------------文档内容------------------------------------------------
 插入数据
 db.collection_name.insert(document)
 db.collection_name.save(document)
@@ -123,8 +131,9 @@ db.order.group(
 	}
 })
 
-使用条件操作符来筛选查询结果
----针对文档内容的操作符，即find()的第二个参数的操作符
+----------------------------------------使用条件操作符来筛选查询结果---------------------------------------
+一般情况下都使用在find()的第一个参数内部，作为筛选条件使用
+
 ---$gt,$lt,$get,$lte,$ne---
 db.collection_name.find(
 {
@@ -140,6 +149,7 @@ db.student.find(
 db.student.find({
 	'height':{$gt:180,$lt:220}
 })
+
 这两个的使用方法跟上面是一样的，但是需要单独拎出来讲，因为有点特殊
 ---$in,$nin---
 db.student.find({
@@ -152,28 +162,192 @@ db.student.find({
 	'height':{$all:[170,180,190,200]}
 })
 这句话的意思是你的身高既是170，又是180，又是190，又是200才能满足条件
----针对筛选条件的，即find()的第一个操作符
----$or
+
+---$or---
 db.student.find({
 	$or:[
 		{'score':100},
 		{'sex':man}
 	]
 })
+上面的例子中，score:100与sex:man是‘或’的关系，结合下面的例子就可以看出$or的作用了
+db.student.find(
+	{'score':100,'sex':'man'}
+)
+其中的score:100与sex:man是且的关系
 
-更新数据，注意两点
+limit(x)函数加skip(y)函数=$slice:[y,x]
+具体使用方法可以看下面这个例子
+db.student.find(
+{},
+{'height':{$slice:[10,5]}}
+)
+还是那句老话，注意$slice的位置，这句话表示筛选身高第11到15的人，第一个参数是skip()的参数，第二个是limit()
+
+limit()函数是限制返回文档的数量的，$size是筛选符合数量的数组的，看下面的例子就明白了
+先在数据库中添加以下信息
+------------------------
+message={
+	'cds':[
+	{'first_song':'hello'},
+	{'second_song':'world'},
+	{'third_song':'again'}
+	]
+}
+db.songs.insert(message)
+------------------------
+接着我们来查询一下上述结果
+db.songs.find(
+{'cds':{$size:2}}
+)
+无返回结果，因为cds数组里有3组数据
+db.songs.find(
+{'cds':{$size:3}}
+)
+返回全部结果，注意一点，这里是作为find()函数的第一个参数传入的，所以是筛选条件
+
+筛选含有特定字段的值
+db.collection_name.find(
+{
+	key_name:{$exit:true}
+})
+-------------------------
+返回存在该字段的文档，注意，这里是存在该字段，而没有指定该字段的具体内容
+
+根据数据类型筛选返回结果
+db.collection_name.find(
+{
+	'key_name':{$type:x}
+})
+-------------------------
+其中的x取值内容有很多，这里就不介绍了，因为太多了看一遍也没用
+
+在筛选中使用正则表达式
+db.collection_name.find(
+{
+	'key_name':/ /
+})
+-------------------
+在/ /中添加正则表达式的内容
+
+-------------------------------------------------------------------------------------------------------------
+
+更新数据
+db.collection_name.update({original_key:original_value},{new_key:new_value})
+----------------------------------------------------------------------------
 1、只要原 collection 中包含 original_key:original_value 就会被选中成为操作对象
 2、整个 collection 都会被更新成 new_key:new_value ，而不单单就只是更新 original_key:original_value
-db.collection_name.update({original_key:original_value},{new_key:new_value})
 
 相较于上面会更新整个集合，下面添加了 $set: 的形式来只进行部分字段的更新
 db.collection_name.update({original_key:original_value},{$set:{new_key:new_value}})
 
+上面使用$set更新了一条字段，可以使用$unset删除一条字段
+db.collection_name.update{
+	{},
+	{$unset:{key:value}}
+}
+
 如果此更新数据不存在就创建这一条数据，加第三个参数为 true 就可以实现了
 db.collection_name.update({original_key:original_value},{new_key:new_value},true)
+或者下面的形式也可以
+db.collection_name.update({original_key:original_value},{new_key:new_value},{upsert:true})
 
-uodate 只会更新第一条满足条件的记录，但是想更新多条记录时，将第三个参数设置为 false，第四个参数设置为 true，而且还要设置 $set
+update 只会更新第一条满足条件的记录，但是想更新多条记录时，将第三个参数设置为 false，第四个参数设置为 true，而且还要设置 $set
 db.collection_name.update({original_key:original_value},{$set{new_key:new_value}},false,true)
+
+---------------------------------------插入数据——数组部分--------------------------------------------
+插入数据
+db.collection_name.update(
+{original_key:value},
+{$push:{
+	new_key:new:value
+}}
+)
+--------------------------
+注意，如果original_key不存在，则会被创建，并且定义为数组的形式，new_key:value则是第一个值
+如果original_key存在，并且数数组，则插入new_key:value，如果不是数组，则报错
+
+一次性插入多个值，前面是使用$push一次插入一个值，如果想插入多个值的话，需要使用下面的内容
+db.collection_name.update(
+{original_key:value},
+{$push:{
+	new_key:{
+		$each:[
+			'value1',
+			'value2',
+			'value3'
+		]
+	}
+}
+})
+注意这里的$push是针对数组操作的，也就是$each后面的内容都将添加到new_key的数组中
+
+与$push对应，$pop删除数组中的数据
+db.collection_name.update(
+{original_key:value},
+{$pop:{
+	{original_key:1}
+}
+})
+--------------------------
+注意，这里的1表示删除的数量，可以是2，3等整数，表示从数组的后端开始删除，也可以是-1等负数，表示从数组的前端开始删除
+
+前面的$pop可以指定删除的数量，但是不能指定删除的条件，$pull则可以
+db.collection_name.update(
+{original_key:value},
+{$pull:
+	{key1:value1}
+}
+)
+--------------------------
+$pull会删除掉key1中所有value1的数据，注意，是删除key1中的value1数据，不是删除key1，所以只要key1数组中包含了value1就会被删除掉value1
+
+与$pull类似，$pullAll可以删除掉多个数据
+db.collection_name.update(
+{original_key:value},
+{$pullAll:{
+	key1:
+	[
+		'value1',
+		'value2',
+		'value3'
+	]
+}
+})
+
+$addToSet是一个非常实用的向数组添加数据的命令，如果该数据不存在则添加，存在就不会重复添加了
+db.collection_name.update(
+{original_key:value},
+{$addToSet:{
+	new_key:{
+		$each:[
+			'value1',
+			'value2',
+			'value3'
+		]
+	}
+}
+})
+设想一下，如果这里不添加$each的情况，如果不添加$each,则会变成往数组new_key中直接添加新的数组
+['value1','value2','value3']
+可以尝试一下，理解$each的功能，回到$addToSet上来，如果原数组中就存在value1,value2,value3则不会添加，如果不存在，则将没有的添加进去，有的也不会重复添加，彼此之间不是互相影响的。
+--------------------------------------------------------------------------------------------------------------
+
+原子操作
+这里就不解释什么叫原子操作了，对于我们使用者来说只要知道怎么采用原子操作就可以了
+db.collection_name.findAndModify(
+	{
+	query:{key:value},
+	sort:{key2:1/-1},
+	update/remove:true,
+	new:true
+	}
+)
+-----------------------
+query 指定查询的文档
+sort  排序，1，-1的含义这里就不解释了，跟上面一样
+update/remove 表示操作
+new  表示返回最终的修改结果，可以不填
 
 删除所有查找到的数据
 db.coolection_name.remove({key:value})
