@@ -361,6 +361,11 @@ db.collection_name.getIndexes()
 创建索引
 db.collection_name.ensureIndex({key:value})
 
+前面是根据key:value的形式创建索引的，接下来就为一集合的某一字段全部创建索引
+db.collection_name.ensureIndex({key:1})
+---------------------------------------
+复合索引的创建就是在其中多添加几个内容
+
 删除索引
 db.collection_name.dropIndex({key:value})
 
