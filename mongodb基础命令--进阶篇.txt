@@ -42,7 +42,7 @@ db.collection_name.find(
 	return_key_name:1}
 )
 a find()函数的第一个参数是查询条件，即匹配该内容的文档都会被筛选出来
-b find()函数的第二个参数是指定返回的内容，例如一个student的集合中的一个xiaoming文档中包含多条内容，姓名、学生号、家庭住址等，现在我只想看姓名，不想查询的时候返回xiaoming文档的全部内容，就可以使用这种'键名:1'的形式，后面的1是规定的，不能更改
+b find()函数的第二个参数是指定返回的内容，例如一个student的集合中的一个xiaoming文档中包含多条内容，姓名、学生号、家庭住址等，现在我只想看姓名，不想查询的时候返回xiaoming文档的全部内容，就可以使用这种'键名:1'的形式，后面的1表示筛选出该内容并正序输出，0表示筛选出除了该内容的其余部分，-1表示逆序跟1一样的结果
 c 可以返回多条记录，这里只是举个例子，还是拿ixaoming的例子
 {
 	'name':1,
@@ -80,11 +80,86 @@ db.self.find({
 查询单条数据
 db.collection_name.findOne()
 
-计算符合查询条件的文档的数量
-db.collection_name.find().count()
-
 skip 跳过查询的最开始的数量，limit，限制返回数量，sort，当 x:1 表示正序，x:-1 表示逆序
 db.collection_name.find().skip(Number).limit(Number).sort({x:1})
+
+计算符合查询条件的文档的数量
+db.collection_name.find().count()
+---------------------------------
+count()函数默认情况下会忽略skip()或limit()函数，例如假设student集合中有4个文档，下面的三条语句将显示不同的结果
+db.student.find().limit(1).count() 		结果为4，count忽略了limit(1)的条件
+db.student.find().limit(1).count(true)	结果为1，为count()传入参数true
+
+获取结果的唯一值
+db.collection_name.distinct('key_name')
+-----------------------------
+也是查询的函数，只不过他比起find()会将查询结果显示唯一值，而不是根据原有集合中，文档的数量来显示结果，结合关系
+型数据库中的distinct来理解，举个例子，有一个图书集合--books，该集合下有书名，作者，出版日期等信息，注意，一个作者可能写了很多本书，现在我想查看在该集合中有多少作者，如果我直接使用上面的find()函数来搜索的话
+db.books.find(
+	{},
+	{'writer':1}
+)
+这样会将全部的作者列出来，但是很多都是重复的，因为find()是根据文档数量来返回结果的，而distinct()会将结果筛选，
+其中重复的部分
+db.books.distinct('writer')
+
+将查询结果分组
+db.collection_name.group()
+--------------------------
+传入参数1 key 按照该键进行分组
+传入参数2 initial 统计分组后各个组的数量
+传入参数3 reduce 他又可以接收两个参数，正在遍历的当前文档和聚集计数器对象，具体的可以去看接下来展示的例子
+传入参数4 keyf 书上没有例子，理解不能
+传入参数5 cond 指定参与分组的文档需要满足的要求
+传入参数6 finalize 指定一个函数，在分组完成后会自动执行
+可能比较难理解，那么请看下面这个例子，这个例子只使用到了前3个参数，假设一订单集合，现使用group()来统计各用户订
+单情况
+db.order.group(
+{
+	key:{CustomerID:true},//按照用户的id来分组
+	initial:{Total:0},	  //计算每个用户分别下了多少订单
+	reduce:function(item,prev){
+		//这里的item就是当前文档，prev就是聚集计数器对象
+	}
+})
+
+使用条件操作符来筛选查询结果
+---针对文档内容的操作符，即find()的第二个参数的操作符
+---$gt,$lt,$get,$lte,$ne---
+db.collection_name.find(
+{
+	key_name:{$gt:value}
+})
+注意操作符的位置，看例子可以便于理解
+db.student.find(
+{
+	'height':{$gt:180}
+})
+表示筛选出学生集合中身高高于180的学生
+可以同时使用两个操作符来指定范围
+db.student.find({
+	'height':{$gt:180,$lt:220}
+})
+这两个的使用方法跟上面是一样的，但是需要单独拎出来讲，因为有点特殊
+---$in,$nin---
+db.student.find({
+	'height':{$in:[170,180,190,200]}
+})
+表示筛选出身高为170，180，190，200的学生，$nin就是筛选除了170，180，190，200之外的学生
+---$all---
+上面的$in中的内容是‘或’的形式，只要你的身高是170，或180，或190，或200，那么你就符合筛选条件，而$all则是且的关系
+db.student.find({
+	'height':{$all:[170,180,190,200]}
+})
+这句话的意思是你的身高既是170，又是180，又是190，又是200才能满足条件
+---针对筛选条件的，即find()的第一个操作符
+---$or
+db.student.find({
+	$or:[
+		{'score':100},
+		{'sex':man}
+	]
+})
 
 更新数据，注意两点
 1、只要原 collection 中包含 original_key:original_value 就会被选中成为操作对象
