@@ -49,7 +49,7 @@ db.collection_name.find(
 	{query_term:value},
 	return_key_name:1}
 )
-a find()函数的第一个参数是查询条件，即匹配该内容的文档都会被筛选出来
+a find()函数的第一个参数是查询条件，即匹配该内容的文档都会被筛选出来，如果没有查询条件，则输入{}，不可以为空
 b find()函数的第二个参数是指定返回的内容，例如一个student的集合中的一个xiaoming文档中包含多条内容，姓名、学生号、家庭住址等，现在我只想看姓名，不想查询的时候返回xiaoming文档的全部内容，就可以使用这种'键名:1'的形式，后面的1表示筛选出该内容并正序输出，0表示筛选出除了该内容的其余部分，-1表示逆序跟1一样的结果
 c 可以返回多条记录，这里只是举个例子，还是拿ixaoming的例子
 {
@@ -83,7 +83,7 @@ db.self.find({
 	{'php':1}
 	}
 })
-
+这里的$elemMatch是作为条件操作符来使用的
 
 查询单条数据
 db.collection_name.findOne()
@@ -100,7 +100,7 @@ db.student.find().limit(1).count(true)	结果为1，为count()传入参数true
 
 获取结果的唯一值
 db.collection_name.distinct('key_name')
------------------------------
+---------------------------------------
 也是查询的函数，只不过他比起find()会将查询结果显示唯一值，而不是根据原有集合中，文档的数量来显示结果，结合关系
 型数据库中的distinct来理解，举个例子，有一个图书集合--books，该集合下有书名，作者，出版日期等信息，注意，一个作者可能写了很多本书，现在我想查看在该集合中有多少作者，如果我直接使用上面的find()函数来搜索的话
 db.books.find(
@@ -114,22 +114,103 @@ db.books.distinct('writer')
 将查询结果分组
 db.collection_name.group()
 --------------------------
-传入参数1 key 按照该键进行分组
-传入参数2 initial 统计分组后各个组的数量
-传入参数3 reduce 他又可以接收两个参数，正在遍历的当前文档和聚集计数器对象，具体的可以去看接下来展示的例子
-传入参数4 keyf 书上没有例子，理解不能
-传入参数5 cond 指定参与分组的文档需要满足的要求
-传入参数6 finalize 指定一个函数，在分组完成后会自动执行
-可能比较难理解，那么请看下面这个例子，这个例子只使用到了前3个参数，假设一订单集合，现使用group()来统计各用户订
-单情况
-db.order.group(
-{
-	key:{CustomerID:true},//按照用户的id来分组
-	initial:{Total:0},	  //计算每个用户分别下了多少订单
-	reduce:function(item,prev){
-		//这里的item就是当前文档，prev就是聚集计数器对象
+参数1 key 按照此key进行分组
+参数2 initial 设置变量，该变量会在最终输出，注意，这个变量是对每个分组都会定义一个的，一个新的分组开始就重新
+创建
+参数3 reduce 一个函数，在文档分组期间执行，即对一个文档进行一次分组就会执行一次，传入两个参数，一个是代表
+initial的参数，一个是目前进行分组的文档，为了便于理解，分别取名叫out和doc
+参数4 keyf，可选，作用跟key一样，但是可以指定一个函数创建一个原本不存在于文档中的字段作为分组的依据，需要传入一个当前
+文档的参数
+参数5 cond 过滤条件，只有满足该条件的文档才能参与分组
+参数6 finalize 在分组完成后执行的函数，传入代表initial的参数
+下面来看一个例子就能大致上了解了，先传入几个文档到orders集合中
+--------------------------------
+data1={  
+ "_id" : ObjectId("552a330e05c27486b9b9b650"),  
+ "_class" : "com.mongo.model.Orders",  
+ "onumber" : "002",  
+ "date" : ISODate("2014-01-03T16:03:00Z"),  
+ "cname" : "zcy",  
+ "item" : {  
+   "quantity" : 1,  
+   "price" : 4.0,  
+   "pnumber" : "p002"  
+  }  
+}
+data2={  
+ "_id" : ObjectId("552a331d05c275d8590a550d"),  
+ "_class" : "com.mongo.model.Orders",  
+ "onumber" : "003",  
+ "date" : ISODate("2014-01-04T16:03:00Z"),  
+ "cname" : "zcy",  
+ "item" : {  
+   "quantity" : 10,  
+   "price" : 2.0,  
+   "pnumber" : "p001"  
+  }  
+} 
+data3={  
+ "_id" : ObjectId("552a333105c2f28194045a72"),  
+ "_class" : "com.mongo.model.Orders",  
+ "onumber" : "003",  
+ "date" : ISODate("2014-01-04T16:03:00Z"),  
+ "cname" : "zcy",  
+ "item" : {  
+   "quantity" : 30,  
+   "price" : 4.0,  
+   "pnumber" : "p002"  
+  }  
+}  
+data4={  
+ "_id" : ObjectId("552a333f05c2b62c01cff50e"),  
+ "_class" : "com.mongo.model.Orders",  
+ "onumber" : "004",  
+ "date" : ISODate("2014-01-05T16:03:00Z"),  
+ "cname" : "zcy",  
+ "item" : {  
+   "quantity" : 5,  
+   "price" : 4.0,  
+   "pnumber" : "p002"  
+  }  
+}  
+db.orders.insert(data1)
+db.orders.insert(data2)
+db.orders.insert(data3)
+db.orders.insert(data4)
+-----------------------
+接下来展示group()函数
+例1
+db.orders.group({
+	key:{data:1,'item.pnumber':1},
+	initial:{'total':0},
+	reduce:function (doc,out){
+		out.total+=doc.item.quantity
 	}
 })
+------------------------------------
+首先是按照data和ietm数组中的pnumber分组
+接着定义了输出变量total，记录每个产品的总数
+接着是定义处理函数，也就是reduce中的函数，注意，传入参数的先后顺序，第一个参数表示当前进行分组的文档，第二个参数表示initial，所以doc能直接调用doc.item.quantity，即文档的内容，out能调用out.total，即initial的内容
+-----------------------------------------------------------------------------------------------------
+例2
+db.orders.group({
+	keyf:function(doc){
+		return {'month':doc.date.getMonth()+1};
+	},
+	initial:{'total':0,'money':0},
+	reduce:function (doc,out){
+		out.total+=doc.item.quantity*doc.item.price
+	},
+	finalize:function (out){
+		out.avg=out.money/out.total;
+		return out;
+	}
+})
+---------------------------------------------------
+首先，这个例子展示了keyf的用法，他返回了一个新的字段--month，接下来mongodb会按照month的计算结果分类
+接着，就是在keyf以及finalize的函数中都有传入参数，其实这个参数跟reduce中的参数名字没有关系，这里写在一起主要是为了便于理解其含义
+最后就是在finalize中临时创建了一个变量avg，这个avg在最后也是会被输出的
+最后一点，在函数中处理结果都是会被return的
 
 ----------------------------------------使用条件操作符来筛选查询结果---------------------------------------
 一般情况下都使用在find()的第一个参数内部，作为筛选条件使用
@@ -396,4 +477,4 @@ db.student.find(
 -------------------------
 mongodb不支持像传统的关系型数据库那样的多表操作，mongodb都是需要先将数据保存好，再来调用的，如上面的yang保存的就是find()查询所需要的内容，需要先将数据从数据库中读出保存好再来调用，其中yang.name就等于'yang'
 
-接下来就是使用DBRef引用数据库了，调用DBRef需要传入三个参数，第一个调用的collection_name，id,db_name，这个可选，还是上面的这个例子，接下来使用DBRef的方式，但是这玩意我怎么也搞不定
+接下来就是使用DBRef引用数据库了，调用DBRef需要传入三个参数，第一个调用的collection_name，id,db_name，这个可选，还是上面的这个例子，接下来使用DBRef的方式，这玩意我搞不定
